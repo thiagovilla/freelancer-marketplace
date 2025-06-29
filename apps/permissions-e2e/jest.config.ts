@@ -1,5 +1,5 @@
 export default {
-  displayName: 'freelancer-marketplace-e2e',
+  displayName: 'permissions-e2e',
   preset: '../../jest.preset.js',
   globalSetup: '<rootDir>/src/support/global-setup.ts',
   globalTeardown: '<rootDir>/src/support/global-teardown.ts',
@@ -14,5 +14,5 @@ export default {
     ],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: '../../coverage/freelancer-marketplace-e2e',
+  coverageDirectory: '../../coverage/permissions-e2e',
 };

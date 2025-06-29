@@ -37,7 +37,10 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": ["apps/freelancer-marketplace-e2e/**/*"]
+      "exclude": [
+        "apps/freelancer-marketplace-e2e/**/*",
+        "apps/permissions-e2e/**/*"
+      ]
     }
   ]
 }

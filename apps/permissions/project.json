@@ -1,9 +1,8 @@
 {
-  "name": "freelancer-marketplace",
+  "name": "permissions",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/freelancer-marketplace/src",
+  "sourceRoot": "apps/permissions/src",
   "projectType": "application",
-  "tags": [],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
@@ -23,22 +22,18 @@
       "defaultConfiguration": "development",
       "dependsOn": ["build"],
       "options": {
-        "buildTarget": "freelancer-marketplace:build",
+        "buildTarget": "permissions:build",
         "runBuildTargetDependencies": false
       },
       "configurations": {
         "development": {
-          "buildTarget": "freelancer-marketplace:build:development"
+          "buildTarget": "permissions:build:development"
         },
         "production": {
-          "buildTarget": "freelancer-marketplace:build:production"
+          "buildTarget": "permissions:build:production"
         }
       }
-    },
-    "test": {
-      "options": {
-        "passWithNoTests": true
-      }
     }
-  }
+  },
+  "tags": []
 }
