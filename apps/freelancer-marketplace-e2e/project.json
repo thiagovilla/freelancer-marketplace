@@ -1,0 +1,20 @@
+{
+  "name": "freelancer-marketplace-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["freelancer-marketplace"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
+      "options": {
+        "jestConfig": "apps/freelancer-marketplace-e2e/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "dependsOn": [
+        "freelancer-marketplace:build",
+        "freelancer-marketplace:serve"
+      ]
+    }
+  }
+}
