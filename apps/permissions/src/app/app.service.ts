@@ -18,10 +18,10 @@ export class AppService {
         LEFT JOIN "Group" g ON g.id = u."groupId"
         LEFT JOIN "_GroupToPermission" gp ON gp."A" = g.id
         LEFT JOIN "Permission" p_gp ON p_gp.id = gp."B"
-        -- LEFT JOIN "FlattenedRolePermission" frp ON frp."roleId" = u."roleId"
-        -- LEFT JOIN "Permission" p_rp ON p_rp.id = frp."permissionId"
-        LEFT JOIN "_PermissionToRole" pr ON pr."B" = u."roleId"
-        LEFT JOIN "Permission" p_rp ON p_rp.id = pr."A"
+        LEFT JOIN "FlattenedRolePermission" frp ON frp."roleId" = u."roleId"
+        LEFT JOIN "Permission" p_rp ON p_rp.id = frp."permissionId"
+        -- LEFT JOIN "_PermissionToRole" pr ON pr."B" = u."roleId"
+        -- LEFT JOIN "Permission" p_rp ON p_rp.id = pr."A"
         WHERE u.id = $1::uuid
           AND (
             -- is org admin
@@ -76,12 +76,52 @@ export class AppService {
             o."adminId" = u.id
 
             -- has group/role permission (including inherited)
-            OR p_gp.key = 'project:post'
-            OR p_rp.key = 'project:post'
+            OR p_gp.key = $2
+            OR p_rp.key = $2
           )
       )
     `, userId, permissionKey);
 
     return result?.exists ?? false;
+  }
+
+  async flattenRoleHierarchy(organizationId: string): Promise<void> {
+    // Clear existing flattened permissions
+    await this.prisma.flattenedRolePermission.deleteMany({ where: { organizationId } });
+
+    await this.prisma.$executeRawUnsafe(`
+      WITH RECURSIVE role_hierarchy AS (
+        -- Base case: direct roles and permissions
+        SELECT
+          r.id AS role_id,
+          r.id AS base_role_id,
+          r."organizationId",
+          p.id AS permission_id
+        FROM "Role" r
+        LEFT JOIN "_PermissionToRole" pr ON pr."B" = r.id
+        LEFT JOIN "Permission" p ON p.id = pr."A"
+        WHERE r."organizationId" = $1::uuid
+
+        UNION
+
+        -- Recursive case: inherit parent permissions
+        SELECT
+          rh.role_id,
+          r.id AS base_role_id,
+          r."organizationId",
+          p.id AS permission_id
+        FROM "Role" r
+          INNER JOIN role_hierarchy rh ON rh.base_role_id = r."parentRoleId"
+          LEFT JOIN "_PermissionToRole" pr ON pr."B" = rh.role_id
+          LEFT JOIN "Permission" p ON p.id = pr."A"
+        WHERE r."organizationId" = $1::uuid
+      )
+
+      -- Insert new flattened permissions
+      INSERT INTO "FlattenedRolePermission" ("roleId", "permissionId", "organizationId")
+      SELECT DISTINCT base_role_id, permission_id, "organizationId"
+      FROM role_hierarchy
+      WHERE permission_id IS NOT NULL;
+    `, organizationId);
   }
 }
