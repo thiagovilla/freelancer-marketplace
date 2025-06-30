@@ -39,6 +39,7 @@
       },
       "exclude": [
         "apps/freelancer-marketplace-e2e/**/*",
+        "apps/permissions-e2e/**/*",
         "apps/permissions-e2e/**/*"
       ]
     }

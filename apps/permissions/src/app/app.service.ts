@@ -1,8 +1,43 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class AppService {
+  constructor(private prisma: PrismaService) {}
+
   getData(): { message: string } {
     return { message: 'Hello API' };
+  }
+
+  async can(userId: string, permissionKey: string): Promise<boolean> {
+    const [result] = await this.prisma.$queryRawUnsafe<{ exists: boolean }[]>(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM "User" u
+        JOIN "Organization" o ON o.id = u."organizationId"
+        LEFT JOIN "Group" g ON g.id = u."groupId"
+        LEFT JOIN "_GroupToPermission" gp ON gp."A" = g.id
+        LEFT JOIN "Permission" p_gp ON p_gp.id = gp."B"
+        -- LEFT JOIN "FlattenedRolePermission" frp ON frp."roleId" = u."roleId"
+        -- LEFT JOIN "Permission" p_rp ON p_rp.id = frp."permissionId"
+        WHERE u.id = $1::uuid
+          AND (
+            -- is org admin
+            o."adminId" = u.id
+
+            -- OR (g."adminId" = u.id AND EXISTS (
+            --  SELECT 1 FROM "_GroupPermissions" gpg
+            --  JOIN "Permission" pgp ON pgp.id = gpg."B"
+            --  WHERE gpg."A" = g.id AND pgp.key = $2
+            -- ))
+
+            -- has group/role permission
+            OR p_gp.key = $2
+            -- OR p_rp.key = $2
+          )
+      )
+    `, userId, permissionKey);
+
+    return result?.exists ?? false;
   }
 }

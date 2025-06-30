@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  name                 String
+  adminId              String?                   @db.Uuid
+  admin                User?                     @relation("OrgAdmin", fields: [adminId], references: [id])
+  roles                Role[]
+  permissions          Permission[]
+  users                User[]                    @relation("OrgUsers")
+  groups               Group[]
+  flattenedPermissions FlattenedRolePermission[]
+}
+
+model User {
+  id             String         @id @default(uuid()) @db.Uuid
+  name           String
+  roleId         String?        @db.Uuid
+  role           Role?          @relation(fields: [roleId], references: [id])
+  groupId        String?        @db.Uuid
+  group          Group?         @relation(fields: [groupId], references: [id])
+  organizationId String         @db.Uuid
+  organization   Organization   @relation("OrgUsers", fields: [organizationId], references: [id])
+  adminForOrgs   Organization[] @relation("OrgAdmin")
+  adminForGroups Group[]        @relation("GroupAdmin")
+}
+
+model Role {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  name                 String
+  description          String?
+  parentRoleId         String?                   @db.Uuid
+  parentRole           Role?                     @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childrenRoles        Role[]                    @relation("RoleHierarchy")
+  organizationId       String                    @db.Uuid
+  organization         Organization              @relation(fields: [organizationId], references: [id])
+  permissions          Permission[]
+  user                 User[]
+  flattenedPermissions FlattenedRolePermission[]
+}
+
+model Permission {
+  id             String                    @id @default(uuid()) @db.Uuid
+  key            String                    @unique
+  name           String?
+  description    String?
+  organizationId String                    @db.Uuid
+  organization   Organization              @relation(fields: [organizationId], references: [id])
+  roles          Role[]
+  groups         Group[]
+  flattenedRoles FlattenedRolePermission[]
+}
+
+model Group {
+  id             String       @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  adminId        String?      @db.Uuid
+  admin          User?        @relation("GroupAdmin", fields: [adminId], references: [id])
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  permissions    Permission[]
+  users          User[]
+}
+
+model FlattenedRolePermission {
+  roleId         String       @db.Uuid
+  role           Role         @relation(fields: [roleId], references: [id])
+  permissionId   String       @db.Uuid
+  permission     Permission   @relation(fields: [permissionId], references: [id])
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@id([roleId, permissionId])
+}
