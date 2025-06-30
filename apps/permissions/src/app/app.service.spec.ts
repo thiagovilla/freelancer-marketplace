@@ -103,4 +103,34 @@ describe('AppService', () => {
       expect(await service.can(user.id, perm.key)).toBe(true);
     });
   });
+
+  describe('canWithRecursion', () => {
+    it('returns true if role hierarchy has permission', async () => {
+      const org = await prisma.organization.create({
+        data: { name: 'ACME Inc.' },
+      });
+
+      const perm = await prisma.permission.create({
+        data: { key: 'project:post', organizationId: org.id },
+      });
+
+      const memberRole = await prisma.role.create({
+        data: { name: 'Member', permissions: { connect: { id: perm.id } }, organizationId: org.id },
+      });
+
+      const groupAdminRole = await prisma.role.create({
+        data: { name: 'Group Admin', parentRoleId: memberRole.id, organizationId: org.id },
+      });
+
+      const user = await prisma.user.create({
+        data: {
+          name: 'Group admin',
+          roleId: groupAdminRole.id,
+          organizationId: org.id,
+        },
+      });
+
+      expect(await service.canWithRecursion(user.id, perm.key)).toBe(true);
+    });
+  });
 });
