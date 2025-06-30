@@ -78,5 +78,29 @@ describe('AppService', () => {
 
       expect(await service.can(user.id, perm.key)).toBe(true);
     });
+
+    it('returns true if role has permission', async () => {
+      const org = await prisma.organization.create({
+        data: { name: 'ACME Inc.' },
+      });
+
+      const perm = await prisma.permission.create({
+        data: { key: 'project:post', organizationId: org.id },
+      });
+
+      const memberRole = await prisma.role.create({
+        data: { name: 'Member', permissions: { connect: { id: perm.id } }, organizationId: org.id },
+      });
+
+      const user = await prisma.user.create({
+        data: {
+          name: 'Some member',
+          roleId: memberRole.id,
+          organizationId: org.id,
+        },
+      });
+
+      expect(await service.can(user.id, perm.key)).toBe(true);
+    });
   });
 });

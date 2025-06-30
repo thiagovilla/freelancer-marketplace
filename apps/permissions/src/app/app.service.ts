@@ -20,6 +20,8 @@ export class AppService {
         LEFT JOIN "Permission" p_gp ON p_gp.id = gp."B"
         -- LEFT JOIN "FlattenedRolePermission" frp ON frp."roleId" = u."roleId"
         -- LEFT JOIN "Permission" p_rp ON p_rp.id = frp."permissionId"
+        LEFT JOIN "_PermissionToRole" pr ON pr."B" = u."roleId"
+        LEFT JOIN "Permission" p_rp ON p_rp.id = pr."A"
         WHERE u.id = $1::uuid
           AND (
             -- is org admin
@@ -33,7 +35,7 @@ export class AppService {
 
             -- has group/role permission
             OR p_gp.key = $2
-            -- OR p_rp.key = $2
+            OR p_rp.key = $2
           )
       )
     `, userId, permissionKey);
