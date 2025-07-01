@@ -137,7 +137,7 @@ describe('AppService', () => {
     });
   });
 
-  describe('canWithRecursion', () => {
+  describe('canWithRecursion__DEPRECATED', () => {
     it('returns true if role hierarchy has permission', async () => {
       const org = await prisma.organization.create({
         data: { name: 'ACME Inc.' },
@@ -163,7 +163,7 @@ describe('AppService', () => {
         },
       });
 
-      expect(await service.canWithRecursion(user.id, perm.key)).toBe(true);
+      expect(await service.canWithRecursion__DEPRECATED(user.id, perm.key)).toBe(true);
     });
   });
 });

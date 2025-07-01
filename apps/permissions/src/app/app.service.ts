@@ -27,6 +27,7 @@ export class AppService {
             -- is org admin
             o."adminId" = u.id
 
+            -- is group admin
             -- OR (g."adminId" = u.id AND EXISTS (
             --  SELECT 1 FROM "_GroupPermissions" gpg
             --  JOIN "Permission" pgp ON pgp.id = gpg."B"
@@ -43,7 +44,7 @@ export class AppService {
     return result?.exists ?? false;
   }
 
-  async canWithRecursion(
+  async canWithRecursion__DEPRECATED(
     userId: string,
     permissionKey: string
   ): Promise<boolean> {
@@ -54,22 +55,22 @@ export class AppService {
         FROM "Role" r1
         WHERE r1.id = (SELECT "roleId" FROM "User" WHERE id = $1::uuid)
 
-        UNION
+        UNION ALL
 
         -- Recursive case: parent roles
         SELECT r2.id, r2."parentRoleId"
         FROM "Role" r2
-        INNER JOIN role_hierarchy rh ON rh."parentRoleId" = r2.id
+          INNER JOIN role_hierarchy rh ON rh."parentRoleId" = r2.id
       )
       SELECT EXISTS (
         SELECT 1
         FROM "User" u
-        JOIN "Organization" o ON o.id = u."organizationId"
-        LEFT JOIN "Group" g ON g.id = u."groupId"
-        LEFT JOIN "_GroupToPermission" gp ON gp."A" = g.id
-        LEFT JOIN "Permission" p_gp ON p_gp.id = gp."B"
-        LEFT JOIN "_PermissionToRole" pr ON pr."B" IN (SELECT rh.id FROM role_hierarchy rh)
-        LEFT JOIN "Permission" p_rp ON p_rp.id = pr."A"
+          JOIN "Organization" o ON o.id = u."organizationId"
+          LEFT JOIN "Group" g ON g.id = u."groupId"
+          LEFT JOIN "_GroupToPermission" gp ON gp."A" = g.id
+          LEFT JOIN "Permission" p_gp ON p_gp.id = gp."B"
+          LEFT JOIN "_PermissionToRole" pr ON pr."B" IN (SELECT rh.id FROM role_hierarchy rh)
+          LEFT JOIN "Permission" p_rp ON p_rp.id = pr."A"
         WHERE u.id = $1::uuid
           AND (
             -- is org admin
@@ -91,37 +92,28 @@ export class AppService {
 
     await this.prisma.$executeRawUnsafe(`
       WITH RECURSIVE role_hierarchy AS (
-        -- Base case: direct roles and permissions
-        SELECT
-          r.id AS role_id,
-          r.id AS base_role_id,
-          r."organizationId",
-          p.id AS permission_id
-        FROM "Role" r
-        LEFT JOIN "_PermissionToRole" pr ON pr."B" = r.id
-        LEFT JOIN "Permission" p ON p.id = pr."A"
-        WHERE r."organizationId" = $1::uuid
+        -- Base case: every role is an ancestor of itself
+        SELECT id AS role_id, id AS ancestor_role_id
+             ,name
+        FROM "Role"
+        WHERE "organizationId" = $1::uuid
 
-        UNION
+        UNION ALL
 
-        -- Recursive case: inherit parent permissions
+        -- Recursive case: follow parent_role_id
         SELECT
           rh.role_id,
-          r.id AS base_role_id,
-          r."organizationId",
-          p.id AS permission_id
-        FROM "Role" r
-          INNER JOIN role_hierarchy rh ON rh.base_role_id = r."parentRoleId"
-          LEFT JOIN "_PermissionToRole" pr ON pr."B" = rh.role_id
-          LEFT JOIN "Permission" p ON p.id = pr."A"
-        WHERE r."organizationId" = $1::uuid
+          r."parentRoleId" AS ancestor_role_id
+          ,r.name
+        FROM role_hierarchy rh
+          JOIN "Role" r ON r.id = rh.ancestor_role_id
+        WHERE r."parentRoleId" IS NOT NULL
       )
-
-      -- Insert new flattened permissions
       INSERT INTO "FlattenedRolePermission" ("roleId", "permissionId", "organizationId")
-      SELECT DISTINCT base_role_id, permission_id, "organizationId"
-      FROM role_hierarchy
-      WHERE permission_id IS NOT NULL;
+      SELECT DISTINCT
+        rh.role_id,pr."A", $1::uuid
+      FROM role_hierarchy rh
+        JOIN "_PermissionToRole" pr ON pr."B" = rh.ancestor_role_id
     `, organizationId);
   }
 }
